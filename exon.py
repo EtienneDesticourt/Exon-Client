@@ -33,7 +33,7 @@ class Client(object):
             self.socket.send(message)
             data = self.socket.recv(self.packetSize) #will fuck up if we dont limit message/comment & name size
             return self.parseMessage(data)
-        return command
+        return newCommand
         
     @executeCommand
     def getHelp(self):
