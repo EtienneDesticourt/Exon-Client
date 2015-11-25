@@ -3,7 +3,7 @@ import socket
 class Client(object):
     "Sends and receives message to and from the mess manager server."
     
-    def __init__(self, host, port, timeout=1, packetSize=1024):
+    def __init__(self, host, port, timeout=10, packetSize=1024):
         self.connect(host, port)
         self.socket.settimeout(timeout)
         self.packetSize = packetSize
@@ -15,10 +15,11 @@ class Client(object):
     
     def formatMessage(self, command, parameters={}):
         "Format a command and its parameters into a string understandable by the server."
-        message = command + " "
-        for key in parameters:
-            message += key + "::" + parameters[key]
-        return message
+        message = command
+        if parameters != {}: message += " "
+        formattedParameters = [key + "=" + parameters[key] for key in parameters]
+        message += "::".join(formattedParameters)
+        return message.encode('utf-8')
 
     def parseMessage(self, data):
         "Transforms binary data into a json object."
@@ -26,10 +27,13 @@ class Client(object):
         return json.loads(string)        
 
     #Could create commands fully dynamically but we'd lose on clarity
-    def executeCommand(self, command):
+    def executeCommand(command):
         def newCommand(self, *args):
-            commandId, commandArgs = command()
+            commandId, commandArgs = command(self, *args)
             message = self.formatMessage(commandId, commandArgs)
+            print(self)
+            print(args)
+            print(message)
             self.socket.send(message)
             data = self.socket.recv(self.packetSize) #will fuck up if we dont limit message/comment & name size
             return self.parseMessage(data)
@@ -55,4 +59,12 @@ class Client(object):
         "Adds a new comment to existing object with ID."
         return ('add comment', {'id': ID, 'comments': comments})
     
+    
+
+    
+if __name__=='__main__':
+    HOST = "62.210.193.38"
+    PORT = 8878
+    C = Client(HOST, PORT)
+    C.addNew('Hello', 'world')
     
