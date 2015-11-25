@@ -3,7 +3,7 @@ import socket
 class Client(object):
     "Sends and receives message to and from the mess manager server."
     
-    def __init__(self, host, port, timeout=10, packetSize=1024):
+    def __init__(self, host, port, timeout=10, packetSize=100):
         self.connect(host, port)
         self.socket.settimeout(timeout)
         self.packetSize = packetSize
@@ -17,7 +17,7 @@ class Client(object):
         "Format a command and its parameters into a string understandable by the server."
         message = command
         if parameters != {}: message += " "
-        formattedParameters = [key + "=" + parameters[key] for key in parameters]
+        formattedParameters = [key + "=\"" + parameters[key] + "\"" for key in parameters]
         message += "::".join(formattedParameters)
         return message.encode('utf-8')
 
@@ -29,11 +29,11 @@ class Client(object):
     #Could create commands fully dynamically but we'd lose on clarity
     def executeCommand(command):
         def newCommand(self, *args):
-            commandId, commandArgs = command(self, *args)
-            message = self.formatMessage(commandId, commandArgs)
-            print(self)
-            print(args)
-            print(message)
+            message = command(self, *args).encode('utf-8')
+##            message = self.formatMessage(commandId, commandArgs)
+##            print(self)
+##            print(args)
+##            print(message)
             self.socket.send(message)
             data = self.socket.recv(self.packetSize) #will fuck up if we dont limit message/comment & name size
             return self.parseMessage(data)
@@ -52,6 +52,7 @@ class Client(object):
     @executeCommand
     def addNew(self, name, comments):
         "Adds a new object to the mess manager."
+        return "add new name=\""+name+"::comments=\""+comments+"\""
         return ('add new', {'name': name, 'comments': comments})
 
     @executeCommand
@@ -63,7 +64,7 @@ class Client(object):
 
     
 if __name__=='__main__':
-    HOST = "62.210.193.38"
+    HOST = socket.gethostbyname("hemochro.me")#62.210.193.38"
     PORT = 8878
     C = Client(HOST, PORT)
     C.addNew('Hello', 'world')
