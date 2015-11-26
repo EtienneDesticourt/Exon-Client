@@ -1,9 +1,11 @@
 import socket
+import time, json
+
 
 class Client(object):
     "Sends and receives message to and from the mess manager server."
     
-    def __init__(self, host, port, timeout=10, packetSize=100):
+    def __init__(self, host, port, timeout=10, packetSize=1024):
         self.connect(host, port)
         self.socket.settimeout(timeout)
         self.packetSize = packetSize
@@ -19,6 +21,7 @@ class Client(object):
         if parameters != {}: message += " "
         formattedParameters = [key + "=\"" + parameters[key] + "\"" for key in parameters]
         message += "::".join(formattedParameters)
+        message += "\n" #End character for server
         return message.encode('utf-8')
 
     def parseMessage(self, data):
@@ -29,12 +32,12 @@ class Client(object):
     #Could create commands fully dynamically but we'd lose on clarity
     def executeCommand(command):
         def newCommand(self, *args):
-            message = command(self, *args).encode('utf-8')
-##            message = self.formatMessage(commandId, commandArgs)
-##            print(self)
-##            print(args)
-##            print(message)
-            self.socket.send(message)
+            #Create mesage
+            commandId, commandArgs = command(self, *args)
+            message = self.formatMessage(commandId, commandArgs)
+            #Send message and wait for reply
+            sent = self.socket.send(message)
+            if not sent: raise socket.error("The server closed the socket unexpectedly.")
             data = self.socket.recv(self.packetSize) #will fuck up if we dont limit message/comment & name size
             return self.parseMessage(data)
         return newCommand
@@ -52,20 +55,23 @@ class Client(object):
     @executeCommand
     def addNew(self, name, comments):
         "Adds a new object to the mess manager."
-        return "add new name=\""+name+"::comments=\""+comments+"\""
         return ('add new', {'name': name, 'comments': comments})
 
     @executeCommand
     def addComment(self, ID, comments):
         "Adds a new comment to existing object with ID."
-        return ('add comment', {'id': ID, 'comments': comments})
-    
-    
+        return ('add comment', {'id': ID, 'comments': comments})            
 
     
 if __name__=='__main__':
-    HOST = socket.gethostbyname("hemochro.me")#62.210.193.38"
+    HOST = "hemochro.me"
     PORT = 8878
-    C = Client(HOST, PORT)
-    C.addNew('Hello', 'world')
+
+    try:
+        ip = socket.gethostbyname(HOST)
+    except socket.gaierror:
+        print("Unable to resolve host.")
+        exit(1)
+        
+    C = Client(ip, PORT)
     
